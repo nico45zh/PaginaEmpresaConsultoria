@@ -1,67 +1,36 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<header class="site-nav">
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
 
-    <div class="container">
-
-        <a class="navbar-brand fw-bold" href="index.php">
-
-            <i class="fa-solid fa-layer-group me-2"></i>
-            Mi Sistema
-
-        </a>
-
-        <button class="navbar-toggler"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#navbarNav">
-
-            <span class="navbar-toggler-icon"></span>
-
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarNav">
-
-            <ul class="navbar-nav me-auto">
-
-                <li class="nav-item">
-                    <a class="nav-link active" href="index.php">
-                        <i class="fa-solid fa-house me-1"></i>
-                        Inicio
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fa-solid fa-folder me-1"></i>
-                        Módulo 1
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fa-solid fa-database me-1"></i>
-                        Módulo 2
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fa-solid fa-chart-column me-1"></i>
-                        Reportes
-                    </a>
-                </li>
-
-            </ul>
-
-            <a href="#" class="btn btn-outline-light">
-
-                <i class="fa-solid fa-user me-2"></i>
-
-                Iniciar sesión
-
+            <a class="navbar-brand" href="index.php">
+                <span class="brand-mark" aria-hidden="true">
+                    <span class="brand-cell c-low"></span>
+                    <span class="brand-cell c-mid"></span>
+                    <span class="brand-cell c-high"></span>
+                    <span class="brand-cell c-mid"></span>
+                </span>
+                <span class="brand-text">RiskGuard<span class="brand-text-accent">.</span></span>
             </a>
 
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-label="Abrir menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.php#servicios">Servicios</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.php#metodologia">Metodología</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.php#normas">Normas ISO</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.php#equipo">Equipo</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.php#contacto">Contacto</a></li>
+                </ul>
+
+                <a href="index.php#contacto" class="btn btn-cta">
+                    Solicitar diagnóstico
+                    <i class="fa-solid fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+
         </div>
-
-    </div>
-
-</nav>
+    </nav>
+</header>
