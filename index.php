@@ -160,13 +160,13 @@
                 <div class="col-6 col-md-3">
                     <div class="team-card">
                         <div class="team-avatar">JS</div>
-                        <h6>Julissa Solano</h6>
+                        <h6>Julissa Solano Valverde</h6>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="team-card">
                         <div class="team-avatar">IN</div>
-                        <h6>Isaac Naranjo</h6>
+                        <h6>Isaac Naranjo Cerdas</h6>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
