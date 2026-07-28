@@ -22,7 +22,7 @@
                 </p>
                 <div class="hero-actions">
                     <a href="#contacto" class="btn btn-cta btn-lg">Solicitar diagnóstico</a>
-                    <a href="#metodologia" class="btn btn-ghost btn-lg">Ver metodología</a>
+                    <a href="evaluacion-riesgos.php" class="btn btn-ghost btn-lg">Realizar evaluación de riesgos</a>
                 </div>
             </div>
 

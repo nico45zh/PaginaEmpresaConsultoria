@@ -23,6 +23,7 @@
                     <li class="nav-item"><a class="nav-link" href="index.php#normas">Normas ISO</a></li>
                     <li class="nav-item"><a class="nav-link" href="index.php#equipo">Equipo</a></li>
                     <li class="nav-item"><a class="nav-link" href="index.php#contacto">Contacto</a></li>
+                    <li class="nav-item"><a class="nav-link" href="evaluacion-riesgos.php">Evaluación de riesgos</a></li>
                 </ul>
 
                 <a href="index.php#contacto" class="btn btn-cta">
