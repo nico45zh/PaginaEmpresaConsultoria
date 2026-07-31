@@ -7,11 +7,14 @@
 .eval-group{ margin-bottom: 3rem; }
 .eval-group:last-child{ margin-bottom: 0; }
 
+
+
 .eval-group-title{
   display: flex;
   align-items: center;
   gap: 0.7rem;
   font-size: 1.2rem;
+  margin-top: 4rem;
   margin-bottom: 1.5rem;
 }
 
@@ -191,4 +194,25 @@
 
 @media (max-width: 767px){
   .eval-global-card{ flex-direction: column; text-align: center; }
+}
+
+
+#form-evaluacion .eval-meta-card {
+  margin-bottom: 60px !important;
+}
+
+#form-evaluacion .eval-group:first-of-type {
+  margin-top: 0 !important;
+  padding-top: 2.5rem;
+}
+
+/* Campo de fecha automático (solo lectura, sin selector de calendario) */
+.eval-fecha-auto{
+  cursor: default;
+  background: var(--surface-alt);
+  color: var(--text);
+}
+.eval-fecha-auto:focus{
+  box-shadow: none;
+  outline: none;
 }
