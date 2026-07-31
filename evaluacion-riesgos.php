@@ -4,13 +4,13 @@ include "includes/header.php";
 include "includes/navbar.php";
 include "includes/cuestionario-data.php";
 
-$grupos = ['C' => 'Confidencialidad', 'I' => 'Integridad', 'D' => 'Disponibilidad'];
+// Orden de despliegue solicitado: Confidencialidad, Integridad, Disponibilidad
+$orden_grupos = ['I', 'D','C' ];
 
-// Orden de despliegue por dimensión dominante del control
-$orden_grupos = ['I', 'D', 'C'];
-$controles_por_grupo = ['C' => [], 'I' => [], 'D' => []];
-foreach ($controles as $c) {
-    $controles_por_grupo[$c['grupo']][] = $c;
+// Agrupar preguntas por dimensión para el render
+$preguntas_por_grupo = ['C' => [], 'I' => [], 'D' => []];
+foreach ($preguntas as $p) {
+    $preguntas_por_grupo[$p['grupo']][] = $p;
 }
 ?>
 
@@ -37,61 +37,33 @@ foreach ($controles as $c) {
         <div class="container">
             <form id="form-evaluacion">
 
-                <div class="eval-meta-card">
-                    <h2 class="eval-meta-title">Datos generales</h2>
-                    <div class="eval-meta-grid">
-                        <div class="eval-meta-field">
-                            <label for="meta-organizacion">Nombre de la organización</label>
-                            <input type="text" id="meta-organizacion" name="organizacion" class="form-control" required>
+                <?php foreach ($orden_grupos as $g): ?>
+                    <div class="eval-group">
+                        <h2 class="eval-group-title">
+                            <span class="eval-group-tag tag-<?php echo strtolower($g); ?>"><?php echo $g; ?></span>
+                            <?php echo $grupos[$g]; ?>
+                        </h2>
+
+                        <div class="eval-questions">
+                            <?php foreach ($preguntas_por_grupo[$g] as $p): ?>
+                                <div class="eval-question" data-pregunta-id="<?php echo $p['id']; ?>">
+                                    <p class="eval-question-text">
+                                        <span class="eval-question-num"><?php echo $p['id']; ?>.</span>
+                                        <?php echo htmlspecialchars($p['texto']); ?>
+                                    </p>
+                                    <div class="eval-options" role="radiogroup" aria-label="Pregunta <?php echo $p['id']; ?>">
+                                        <?php foreach ($opciones_respuesta as $valor => $etiqueta): ?>
+                                            <label class="eval-option">
+                                                <input type="radio" name="p<?php echo $p['id']; ?>" value="<?php echo $valor; ?>" required>
+                                                <span><?php echo $etiqueta; ?></span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
-                        <div class="eval-meta-field">
-                            <label for="meta-evaluador">Nombre del evaluador</label>
-                            <input type="text" id="meta-evaluador" name="evaluador" class="form-control" required>
-                        </div>
-                       <div class="eval-meta-field">
-                           <label for="meta-fecha">Fecha</label>
-                           <input type="text" id="meta-fecha-display" class="form-control eval-fecha-auto" value="<?php echo date('d/m/Y'); ?>" readonly aria-readonly="true" tabindex="-1">
-                           <input type="hidden" id="meta-fecha" name="fecha" value="<?php echo date('Y-m-d'); ?>">
-                       </div>
                     </div>
-                </div>
-
-<?php foreach ($orden_grupos as $g): ?>
-    <div class="eval-group">
-        <h2 class="eval-group-title">
-            <span class="eval-group-tag tag-<?php echo strtolower($g); ?>"><?php echo $g; ?></span>
-            <?php echo $grupos[$g]; ?>
-        </h2>
-
-        <div class="eval-questions">
-            <?php foreach ($controles_por_grupo[$g] as $c): ?>
-                <div class="eval-control" data-control-id="<?php echo $c['id']; ?>">
-                    <p class="eval-control-titulo">
-                        <span class="eval-control-codigo"><?php echo htmlspecialchars($c['codigo']); ?></span>
-                        <?php echo htmlspecialchars($c['nombre']); ?>
-                    </p>
-                    <?php foreach ($c['preguntas'] as $p): ?>
-                        <div class="eval-question" data-pregunta-id="<?php echo $p['id']; ?>">
-                            <p class="eval-question-text">
-                                <span class="eval-question-num"><?php echo $p['id']; ?>.</span>
-                                <?php echo htmlspecialchars($p['texto']); ?>
-                            </p>
-                            <div class="eval-options" role="radiogroup" aria-label="Pregunta <?php echo $p['id']; ?>">
-                                <?php foreach ($opciones_respuesta as $valor => $etiqueta): ?>
-                                    <label class="eval-option">
-                                        <input type="radio" name="p<?php echo $p['id']; ?>" value="<?php echo $valor; ?>" required>
-                                        <span><?php echo $etiqueta; ?></span>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-<?php endforeach; ?>
-
+                <?php endforeach; ?>
 
                 <div class="eval-submit-row">
                     <button type="submit" class="btn btn-cta btn-lg">
@@ -99,7 +71,6 @@ foreach ($controles as $c) {
                         <i class="fa-solid fa-chart-line ms-2"></i>
                     </button>
                     <p class="eval-submit-hint">Debes responder las 26 preguntas para ver el panel de resultados.</p>
-                    <p id="eval-guardar-status" class="eval-submit-hint"></p>
                 </div>
             </form>
         </div>
@@ -157,10 +128,9 @@ foreach ($controles as $c) {
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script id="eval-data" type="application/json"><?php echo json_encode([
-    'controles' => $controles,
+    'preguntas' => $preguntas,
     'recomendaciones' => $recomendaciones,
     'grupos' => $grupos,
-    'nivelesMadurez' => $niveles_madurez,
 ]); ?></script>
 <script src="assets/js/evaluacion.js"></script>
 

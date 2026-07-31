@@ -4,7 +4,7 @@
   const dataEl = document.getElementById("eval-data");
   if (!dataEl) return;
 
-  const { controles, recomendaciones, grupos, nivelesMadurez } = JSON.parse(dataEl.textContent);
+  const { preguntas, recomendaciones, grupos } = JSON.parse(dataEl.textContent);
   const form = document.getElementById("form-evaluacion");
   const dashboard = document.getElementById("eval-dashboard");
 
@@ -20,56 +20,40 @@
     return { color: "var(--risk-crit)", nivel: "Rojo", texto: "Nivel alto de riesgo y necesidad de acciones correctivas." };
   }
 
-  function nivelMadurez(pctControl) {
-    if (pctControl <= 0)   return 0;
-    if (pctControl <= 20)  return 1;
-    if (pctControl <= 45)  return 2;
-    if (pctControl <= 70)  return 3;
-    if (pctControl <= 90)  return 4;
-    return 5;
-  }
-
   function calcular(respuestas) {
-    // respuestas: { [preguntaId]: "si" | "no" | "na" }
+    // respuestas: { [preguntaId]: 0|1|2 }
     const obtenido = { C: 0, I: 0, D: 0 };
-    const maximo   = { C: 0, I: 0, D: 0 };
-    const resultadosControl = [];
+    const maximo = { C: 0, I: 0, D: 0 };
+    const detallePreguntas = [];
 
-    controles.forEach((c) => {
-      let aplicables = 0;
-      let cumplidas  = 0;
-
-      c.preguntas.forEach((p) => {
-        const r = respuestas[p.id];
-        if (r === "na") return;
-        aplicables++;
-        if (r === "si") cumplidas++;
+    preguntas.forEach((p) => {
+      const puntos = respuestas[p.id];
+      DIMENSIONES.forEach((dim) => {
+        const peso = p.w[dim] || 0;
+        obtenido[dim] += puntos * peso;
+        maximo[dim] += 2 * peso; // 2 = puntaje máximo por pregunta
       });
 
-      const pctControl = aplicables > 0 ? (cumplidas / aplicables) * 100 : 0;
-      const madurez = nivelMadurez(pctControl);
-
-      resultadosControl.push({
-        id: c.id, codigo: c.codigo, nombre: c.nombre, grupo: c.grupo,
-        pctControl: Math.round(pctControl), madurez,
-      });
-
-      ["C", "I", "D"].forEach((dim) => {
-        const pesoDim = { C: c.peso_c, I: c.peso_i, D: c.peso_d }[dim];
-        const factorPeso = c.peso * pesoDim;
-        obtenido[dim] += (madurez / 5) * factorPeso;
-        maximo[dim]   += factorPeso;
+      // score "efectivo" de la pregunta ponderado por su peso total, para detectar debilidades
+      const pesoTotal = p.w.C + p.w.I + p.w.D;
+      detallePreguntas.push({
+        id: p.id,
+        texto: p.texto,
+        grupo: p.grupo,
+        puntos,
+        pesoTotal,
+        debilidad: pesoTotal > 0 ? (puntos / 2) : 1, // 0 = totalmente débil, 1 = totalmente cubierto
       });
     });
 
     const pct = {};
-    ["C", "I", "D"].forEach((dim) => {
+    DIMENSIONES.forEach((dim) => {
       pct[dim] = maximo[dim] > 0 ? Math.round((obtenido[dim] / maximo[dim]) * 100) : 0;
     });
 
     const global = Math.round((pct.C + pct.I + pct.D) / 3);
 
-    return { pct, global, resultadosControl };
+    return { pct, global, detallePreguntas };
   }
 
   function renderDimensionCards(pct) {
@@ -173,66 +157,35 @@
     });
   }
 
-  function renderControlesDebiles(resultadosControl) {
+  function renderControlesDebiles(detalle) {
     const lista = document.getElementById("eval-weak-list");
     lista.innerHTML = "";
 
-    const debiles = resultadosControl
-        .filter((r) => r.madurez < 4)
-        .sort((a, b) => a.madurez - b.madurez)
-        .slice(0, 8);
+    const debiles = detalle
+      .filter((p) => p.puntos < 2 && p.pesoTotal > 0)
+      .sort((a, b) => (a.puntos - b.puntos) || (b.pesoTotal - a.pesoTotal))
+      .slice(0, 8);
 
     if (debiles.length === 0) {
-      lista.innerHTML = "<li>Todos los controles evaluados presentan un nivel de madurez adecuado.</li>";
+      lista.innerHTML = "<li>Todos los controles evaluados están completamente implementados.</li>";
       return;
     }
 
-    debiles.forEach((r) => {
+    debiles.forEach((p) => {
+      const estado = p.puntos === 0 ? "No cumple" : "Cumple parcialmente";
       const li = document.createElement("li");
-      li.innerHTML = `<span class="eval-weak-estado estado-${r.madurez}">Madurez ${r.madurez} — ${nivelesMadurez[r.madurez]}</span> ${r.codigo} ${r.nombre}`;
+      li.innerHTML = `<span class="eval-weak-estado estado-${p.puntos}">${estado}</span> ${p.texto}`;
       lista.appendChild(li);
     });
   }
-
-
-  async function guardarEvaluacion(organizacion, evaluador, fecha, respuestas) {
-    const statusEl = document.getElementById("eval-guardar-status");
-    if (statusEl) {
-      statusEl.textContent = "Guardando evaluación...";
-      statusEl.style.color = "var(--text-muted)";
-    }
-    try {
-      const res = await fetch("api/guardar-evaluacion.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizacion, evaluador, fecha, respuestas }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Error desconocido al guardar.");
-      if (statusEl) {
-        statusEl.textContent = "Evaluación guardada correctamente en la base de datos.";
-        statusEl.style.color = "var(--risk-low)";
-      }
-    } catch (err) {
-      console.error("Error al guardar evaluación:", err);
-      if (statusEl) {
-        statusEl.textContent = "No se pudo guardar en la base de datos (los resultados siguen visibles abajo).";
-        statusEl.style.color = "var(--risk-crit)";
-      }
-    }
-  }
-
-
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
 
     const respuestas = {};
-    controles.forEach((c) => {
-      c.preguntas.forEach((p) => {
-        const input = form.querySelector(`input[name="p${p.id}"]:checked`);
-        respuestas[p.id] = input ? input.value : null;
-      });
+    preguntas.forEach((p) => {
+      const input = form.querySelector(`input[name="p${p.id}"]:checked`);
+      respuestas[p.id] = input ? parseInt(input.value, 10) : null;
     });
 
     if (Object.values(respuestas).some((v) => v === null)) {
@@ -242,12 +195,7 @@
       return;
     }
 
-    const { pct, global, resultadosControl } = calcular(respuestas);
-
-    const organizacion = form.querySelector('[name="organizacion"]').value.trim();
-    const evaluador = form.querySelector('[name="evaluador"]').value.trim();
-    const fecha = form.querySelector('[name="fecha"]').value;
-    guardarEvaluacion(organizacion, evaluador, fecha, respuestas);
+    const { pct, global, detallePreguntas } = calcular(respuestas);
 
     // Cada bloque se aísla: si uno falla (p.ej. el CDN de Chart.js no cargó),
     // el resto del panel igual se muestra en vez de quedar todo en blanco.
@@ -265,7 +213,7 @@
         '<p class="eval-submit-hint" style="color:var(--risk-crit)">No se pudieron cargar los gráficos (Chart.js). El resto de los resultados sí está disponible abajo.</p>');
     }
     try { renderRecomendaciones(pct); } catch (err) { console.error("Error en renderRecomendaciones:", err); }
-    try { renderControlesDebiles(resultadosControl); } catch (err) { console.error("Error en renderControlesDebiles:", err); }
+    try { renderControlesDebiles(detallePreguntas); } catch (err) { console.error("Error en renderControlesDebiles:", err); }
 
     dashboard.hidden = false;
     dashboard.scrollIntoView({ behavior: "smooth", block: "start" });
