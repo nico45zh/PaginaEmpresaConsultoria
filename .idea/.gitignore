@@ -9,4 +9,6 @@
 # Editor-based HTTP Client requests
 /httpRequests/
 
-/config/database.local.php
+/config/database.local.php/
+
+info.php/
