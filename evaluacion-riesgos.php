@@ -25,7 +25,7 @@ foreach ($preguntas as $p) {
             <h1 class="section-title eval-title">Evaluación de riesgos de tu base de datos</h1>
             <p class="section-lead">
                 Cuestionario basado en buenas prácticas de <strong>ISO/IEC 27002</strong>, <strong>ISO/IEC 27005</strong>
-                y <strong>COBIT</strong>. Responde cada control según su nivel de cumplimiento actual; al finalizar
+                y <strong>COBIT</strong>. Responde cada control según si el control está implementado o no; al finalizar
                 obtendrás un panel con el índice de riesgo por dimensión de la triada
                 <strong>Confidencialidad · Integridad · Disponibilidad</strong> y recomendaciones de mejora.
             </p>
@@ -52,12 +52,27 @@ foreach ($preguntas as $p) {
                                         <?php echo htmlspecialchars($p['texto']); ?>
                                     </p>
                                     <div class="eval-options" role="radiogroup" aria-label="Pregunta <?php echo $p['id']; ?>">
-                                        <?php foreach ($opciones_respuesta as $valor => $etiqueta): ?>
-                                            <label class="eval-option">
-                                                <input type="radio" name="p<?php echo $p['id']; ?>" value="<?php echo $valor; ?>" required>
-                                                <span><?php echo $etiqueta; ?></span>
-                                            </label>
-                                        <?php endforeach; ?>
+                                        <label class="eval-option">
+                                            <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="Si" class="resp-radio" data-pid="<?php echo $p['id']; ?>" required>
+                                            <span>Sí</span>
+                                        </label>
+                                        <label class="eval-option">
+                                            <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="No" class="resp-radio" data-pid="<?php echo $p['id']; ?>" required>
+                                            <span>No</span>
+                                        </label>
+                                        <label class="eval-option">
+                                            <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="NA" class="resp-radio" data-pid="<?php echo $p['id']; ?>" required>
+                                            <span>No aplica</span>
+                                        </label>
+                                    </div>
+                                    <div class="eval-madurez" data-madurez-for="<?php echo $p['id']; ?>" hidden>
+                                        <label class="eval-madurez-label" for="madurez-<?php echo $p['id']; ?>">Nivel de madurez observado</label>
+                                        <select id="madurez-<?php echo $p['id']; ?>" name="p<?php echo $p['id']; ?>_madurez" class="eval-madurez-select">
+                                            <option value="">Selecciona un nivel…</option>
+                                            <?php for ($n = 1; $n <= 5; $n++): ?>
+                                                <option value="<?php echo $n; ?>"><?php echo $n; ?> — <?php echo htmlspecialchars($niveles_madurez[$n]['label']); ?></option>
+                                            <?php endfor; ?>
+                                        </select>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -85,7 +100,7 @@ foreach ($preguntas as $p) {
             <div class="eval-global-card" id="eval-global-card">
                 <div class="eval-global-score">
                     <span id="eval-global-pct">0%</span>
-                    <small>Índice global de seguridad</small>
+                    <small>Índice global de exposición al riesgo</small>
                 </div>
                 <div class="eval-global-meta">
                     <span id="eval-global-badge" class="eval-badge">—</span>
@@ -100,13 +115,13 @@ foreach ($preguntas as $p) {
             <div class="row g-4 mt-4">
                 <div class="col-md-7">
                     <div class="eval-chart-card">
-                        <h6>Cumplimiento por dimensión (C · I · D)</h6>
+                        <h6>"Exposición al riesgo por dimensión (C · I · D)</h6>
                         <canvas id="chart-barras" height="220"></canvas>
                     </div>
                 </div>
                 <div class="col-md-5">
                     <div class="eval-chart-card">
-                        <h6>Nivel general de cumplimiento</h6>
+                        <h6>Nivel general de exposición</h6>
                         <canvas id="chart-circular" height="220"></canvas>
                     </div>
                 </div>
@@ -131,6 +146,7 @@ foreach ($preguntas as $p) {
     'preguntas' => $preguntas,
     'recomendaciones' => $recomendaciones,
     'grupos' => $grupos,
+    'niveles_madurez' => $niveles_madurez,
 ]); ?></script>
 <script src="assets/js/evaluacion.js"></script>
 

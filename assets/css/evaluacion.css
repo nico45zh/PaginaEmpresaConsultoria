@@ -192,3 +192,31 @@
 @media (max-width: 767px){
   .eval-global-card{ flex-direction: column; text-align: center; }
 }
+
+/* Selector de nivel de madurez (condicional, aparece al responder "Sí") */
+.eval-madurez{
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border);
+}
+.eval-madurez-label{
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+.eval-madurez-select{
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.88rem;
+  width: 100%;
+  max-width: 360px;
+}
+.eval-madurez-select:focus{
+  border-color: var(--risk-mid);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(242, 177, 52, 0.15);
+}

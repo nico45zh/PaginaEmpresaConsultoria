@@ -4,7 +4,7 @@
   const dataEl = document.getElementById("eval-data");
   if (!dataEl) return;
 
-  const { preguntas, recomendaciones, grupos } = JSON.parse(dataEl.textContent);
+  const { preguntas, recomendaciones, grupos, niveles_madurez } = JSON.parse(dataEl.textContent);
   const form = document.getElementById("form-evaluacion");
   const dashboard = document.getElementById("eval-dashboard");
 
@@ -14,43 +14,53 @@
   let chartBarras = null;
   let chartCircular = null;
 
+  form.querySelectorAll(".resp-radio").forEach((radio) => {
+    radio.addEventListener("change", function () {
+      const pid = this.dataset.pid;
+      const bloqueMadurez = form.querySelector(`[data-madurez-for="${pid}"]`);
+      const select = bloqueMadurez.querySelector("select");
+      if (this.value === "Si") {
+        bloqueMadurez.hidden = false;
+        select.required = true;
+      } else {
+        bloqueMadurez.hidden = true;
+        select.required = false;
+        select.value = "";
+      }
+    });
+  });
+
+
   function semaforo(pct) {
-    if (pct >= 80) return { color: "var(--risk-low)", nivel: "Verde", texto: "Nivel adecuado de implementación de controles." };
-    if (pct >= 60) return { color: "var(--risk-mid)", nivel: "Amarillo", texto: "Existen oportunidades de mejora." };
-    return { color: "var(--risk-crit)", nivel: "Rojo", texto: "Nivel alto de riesgo y necesidad de acciones correctivas." };
+    if (pct <= 20) return { color: "var(--risk-low)", nivel: "Verde", texto: "Nivel de exposición al riesgo bajo." };
+    if (pct <= 45) return { color: "var(--risk-mid)", nivel: "Amarillo", texto: "Exposición moderada: existen oportunidades de mejora." };
+    return { color: "var(--risk-crit)", nivel: "Rojo", texto: "Exposición alta: se requieren acciones correctivas." };
   }
 
   function calcular(respuestas) {
-    // respuestas: { [preguntaId]: 0|1|2 }
     const obtenido = { C: 0, I: 0, D: 0 };
     const maximo = { C: 0, I: 0, D: 0 };
     const detallePreguntas = [];
 
     preguntas.forEach((p) => {
-      const puntos = respuestas[p.id];
+      const r = respuestas[p.id];
+      const madurez = r.resp === "No" ? 0 : (r.resp === "NA" ? null : r.madurez);
+
       DIMENSIONES.forEach((dim) => {
         const peso = p.w[dim] || 0;
-        obtenido[dim] += puntos * peso;
-        maximo[dim] += 2 * peso; // 2 = puntaje máximo por pregunta
+        if (r.resp === "NA" || peso === 0) return;
+        obtenido[dim] += peso * (5 - madurez);
+        maximo[dim] += peso * 5;
       });
 
-      // score "efectivo" de la pregunta ponderado por su peso total, para detectar debilidades
       const pesoTotal = p.w.C + p.w.I + p.w.D;
-      detallePreguntas.push({
-        id: p.id,
-        texto: p.texto,
-        grupo: p.grupo,
-        puntos,
-        pesoTotal,
-        debilidad: pesoTotal > 0 ? (puntos / 2) : 1, // 0 = totalmente débil, 1 = totalmente cubierto
-      });
+      detallePreguntas.push({ id: p.id, texto: p.texto, grupo: p.grupo, resp: r.resp, madurez, pesoTotal });
     });
 
     const pct = {};
     DIMENSIONES.forEach((dim) => {
       pct[dim] = maximo[dim] > 0 ? Math.round((obtenido[dim] / maximo[dim]) * 100) : 0;
     });
-
     const global = Math.round((pct.C + pct.I + pct.D) / 3);
 
     return { pct, global, detallePreguntas };
@@ -59,7 +69,6 @@
   function renderDimensionCards(pct) {
     const container = document.getElementById("eval-dimension-cards");
     container.innerHTML = "";
-
     DIMENSIONES.forEach((dim) => {
       const s = semaforo(pct[dim]);
       const col = document.createElement("div");
@@ -85,13 +94,16 @@
     document.getElementById("eval-global-text").textContent = s.texto;
   }
 
+  function colorPlano(c) {
+    return c.startsWith("var")
+      ? getComputedStyle(document.documentElement).getPropertyValue(c.match(/--[\w-]+/)[0]).trim()
+      : c;
+  }
+
   function renderCharts(pct) {
     const ctxBarras = document.getElementById("chart-barras").getContext("2d");
     const ctxCircular = document.getElementById("chart-circular").getContext("2d");
-
-    const colores = DIMENSIONES.map((d) => semaforo(pct[d]).color.startsWith("var")
-      ? getComputedStyle(document.documentElement).getPropertyValue(semaforo(pct[d]).color.match(/--[\w-]+/)[0]).trim()
-      : semaforo(pct[d]).color);
+    const colores = DIMENSIONES.map((d) => colorPlano(semaforo(pct[d]).color));
 
     if (chartBarras) chartBarras.destroy();
     if (chartCircular) chartCircular.destroy();
@@ -100,12 +112,7 @@
       type: "bar",
       data: {
         labels: DIMENSIONES.map((d) => NOMBRES[d]),
-        datasets: [{
-          label: "% de cumplimiento",
-          data: DIMENSIONES.map((d) => pct[d]),
-          backgroundColor: colores,
-          borderRadius: 6,
-        }],
+        datasets: [{ label: "% de exposición al riesgo", data: DIMENSIONES.map((d) => pct[d]), backgroundColor: colores, borderRadius: 6 }],
       },
       options: {
         scales: {
@@ -120,39 +127,25 @@
     chartCircular = new Chart(ctxCircular, {
       type: "doughnut",
       data: {
-        labels: ["Cumplimiento", "Brecha"],
-        datasets: [{
-          data: [globalPct, 100 - globalPct],
-          backgroundColor: [semaforo(globalPct).color.startsWith("var")
-            ? getComputedStyle(document.documentElement).getPropertyValue("--risk-" + (globalPct >= 80 ? "low" : globalPct >= 60 ? "mid" : "crit")).trim()
-            : semaforo(globalPct).color, "#1B2740"],
-          borderWidth: 0,
-        }],
+        labels: ["Exposición", "Cobertura"],
+        datasets: [{ data: [globalPct, 100 - globalPct], backgroundColor: [colorPlano(semaforo(globalPct).color), "#1B2740"], borderWidth: 0 }],
       },
-      options: {
-        cutout: "70%",
-        plugins: { legend: { labels: { color: "#9AA7C2" } } },
-      },
+      options: { cutout: "70%", plugins: { legend: { labels: { color: "#9AA7C2" } } } },
     });
   }
 
   function renderRecomendaciones(pct) {
     const lista = document.getElementById("eval-recos-list");
     lista.innerHTML = "";
+    const conRiesgo = DIMENSIONES.filter((d) => pct[d] > 20).sort((a, b) => pct[b] - pct[a]);
 
-    // Dimensiones con brecha relevante (por debajo de 80%), de peor a mejor
-    const debiles = DIMENSIONES
-      .filter((d) => pct[d] < 80)
-      .sort((a, b) => pct[a] - pct[b]);
-
-    if (debiles.length === 0) {
-      lista.innerHTML = "<li>No se detectaron brechas significativas: se recomienda mantener el monitoreo periódico de los controles vigentes.</li>";
+    if (conRiesgo.length === 0) {
+      lista.innerHTML = "<li>No se detectó exposición significativa: se recomienda mantener el monitoreo periódico de los controles vigentes.</li>";
       return;
     }
-
-    debiles.forEach((d) => {
+    conRiesgo.forEach((d) => {
       const li = document.createElement("li");
-      li.innerHTML = `<strong>${NOMBRES[d]} (${pct[d]}%):</strong> ${recomendaciones[d]}`;
+      li.innerHTML = `<strong>${NOMBRES[d]} (${pct[d]}% de exposición):</strong> ${recomendaciones[d]}`;
       lista.appendChild(li);
     });
   }
@@ -160,21 +153,19 @@
   function renderControlesDebiles(detalle) {
     const lista = document.getElementById("eval-weak-list");
     lista.innerHTML = "";
-
     const debiles = detalle
-      .filter((p) => p.puntos < 2 && p.pesoTotal > 0)
-      .sort((a, b) => (a.puntos - b.puntos) || (b.pesoTotal - a.pesoTotal))
+      .filter((p) => p.resp !== "NA" && p.madurez < 3 && p.pesoTotal > 0)
+      .sort((a, b) => (a.madurez - b.madurez) || (b.pesoTotal - a.pesoTotal))
       .slice(0, 8);
 
     if (debiles.length === 0) {
-      lista.innerHTML = "<li>Todos los controles evaluados están completamente implementados.</li>";
+      lista.innerHTML = "<li>Todos los controles evaluados alcanzan un nivel de madurez adecuado (3 o más).</li>";
       return;
     }
-
     debiles.forEach((p) => {
-      const estado = p.puntos === 0 ? "No cumple" : "Cumple parcialmente";
+      const nivel = niveles_madurez[p.madurez];
       const li = document.createElement("li");
-      li.innerHTML = `<span class="eval-weak-estado estado-${p.puntos}">${estado}</span> ${p.texto}`;
+      li.innerHTML = `<span class="eval-weak-estado estado-${p.madurez <= 1 ? 0 : 1}">Nivel ${p.madurez} — ${nivel.label}</span> ${p.texto}`;
       lista.appendChild(li);
     });
   }
@@ -183,28 +174,36 @@
     e.preventDefault();
 
     const respuestas = {};
+    let faltaMadurez = false;
+
     preguntas.forEach((p) => {
-      const input = form.querySelector(`input[name="p${p.id}"]:checked`);
-      respuestas[p.id] = input ? parseInt(input.value, 10) : null;
+      const inputResp = form.querySelector(`input[name="p${p.id}_resp"]:checked`);
+      const resp = inputResp ? inputResp.value : null;
+      let madurez = null;
+
+      if (resp === "Si") {
+        const select = form.querySelector(`select[name="p${p.id}_madurez"]`);
+        madurez = select && select.value !== "" ? parseInt(select.value, 10) : null;
+        if (madurez === null) faltaMadurez = true;
+      }
+      respuestas[p.id] = { resp, madurez };
     });
 
-    if (Object.values(respuestas).some((v) => v === null)) {
-      // El atributo required de cada radio ya evita esto en navegadores modernos,
-      // pero se valida por si acaso.
-      alert("Por favor responde todas las preguntas antes de calcular los resultados.");
+    if (Object.values(respuestas).some((r) => r.resp === null)) {
+      alert("Por favor responde todas las preguntas (Sí / No / No aplica) antes de calcular los resultados.");
+      return;
+    }
+    if (faltaMadurez) {
+      alert("Hay preguntas marcadas 'Sí' sin nivel de madurez seleccionado. Complétalas para continuar.");
       return;
     }
 
     const { pct, global, detallePreguntas } = calcular(respuestas);
 
-    // Cada bloque se aísla: si uno falla (p.ej. el CDN de Chart.js no cargó),
-    // el resto del panel igual se muestra en vez de quedar todo en blanco.
     try { renderGlobal(global); } catch (err) { console.error("Error en renderGlobal:", err); }
     try { renderDimensionCards(pct); } catch (err) { console.error("Error en renderDimensionCards:", err); }
     try {
-      if (typeof Chart === "undefined") {
-        throw new Error("Chart.js no se cargó (revisa la conexión o el CDN en evaluacion-riesgos.php).");
-      }
+      if (typeof Chart === "undefined") throw new Error("Chart.js no se cargó.");
       renderCharts(pct);
     } catch (err) {
       console.error("Error en renderCharts:", err);

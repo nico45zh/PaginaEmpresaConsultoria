@@ -63,3 +63,12 @@ $recomendaciones = [
     'C' => 'Se recomienda fortalecer controles de acceso, autenticación, cifrado y protección de información sensible.',
     'I' => 'Se recomienda mejorar controles de cambios, auditoría, validación de datos y segregación de funciones.',
 ];
+
+$niveles_madurez = [
+    0 => ['label' => 'No existe',                 'desc' => 'El control no existe. No hay evidencia de su implementación.'],
+    1 => ['label' => 'Informal / ocasional',      'desc' => 'El control existe de manera informal o es aplicado ocasionalmente, sin procedimientos definidos.'],
+    2 => ['label' => 'Parcial',                   'desc' => 'El control se aplica parcialmente y existen algunas prácticas documentadas, aunque no de forma consistente.'],
+    3 => ['label' => 'Documentado e implementado','desc' => 'El control se encuentra documentado, definido e implementado en la mayor parte de los procesos.'],
+    4 => ['label' => 'Supervisado',               'desc' => 'El control se encuentra completamente implementado, es supervisado periódicamente y existen evidencias de su cumplimiento.'],
+    5 => ['label' => 'Mejora continua',           'desc' => 'El control se encuentra completamente implementado, es medido, evaluado continuamente y forma parte de un proceso de mejora continua.'],
+];
