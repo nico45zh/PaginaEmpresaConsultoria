@@ -4,13 +4,12 @@ include "includes/header.php";
 include "includes/navbar.php";
 include "includes/cuestionario-data.php";
 
-// Orden de despliegue solicitado: Confidencialidad, Integridad, Disponibilidad
-$orden_grupos = ['I', 'D','C' ];
+// Orden de despliegue por dominio
+$dominios_orden = ['Organizacional', 'Tecnológico'];
 
-// Agrupar preguntas por dimensión para el render
-$preguntas_por_grupo = ['C' => [], 'I' => [], 'D' => []];
-foreach ($preguntas as $p) {
-    $preguntas_por_grupo[$p['grupo']][] = $p;
+$controles_por_dominio = ['Organizacional' => [], 'Tecnológico' => []];
+foreach ($controles as $c) {
+    $controles_por_dominio[$c['dominio']][] = $c;
 }
 ?>
 
@@ -24,10 +23,11 @@ foreach ($preguntas as $p) {
             <span class="section-eyebrow"><i class="fa-solid fa-clipboard-check me-2"></i>Módulo de evaluación</span>
             <h1 class="section-title eval-title">Evaluación de riesgos de tu base de datos</h1>
             <p class="section-lead">
-                Cuestionario basado en buenas prácticas de <strong>ISO/IEC 27002</strong>, <strong>ISO/IEC 27005</strong>
-                y <strong>COBIT</strong>. Responde cada control según si el control está implementado o no; al finalizar
-                obtendrás un panel con el índice de riesgo por dimensión de la triada
-                <strong>Confidencialidad · Integridad · Disponibilidad</strong> y recomendaciones de mejora.
+                Cuestionario basado en <strong>18 controles reales de ISO/IEC 27002:2022</strong> y prácticas de
+                <strong>COBIT</strong>, agrupados por dominio. Responde cada pregunta con Sí, No o No aplica; el nivel
+                de madurez de cada control se calcula automáticamente a partir de tus respuestas, y al finalizar
+                obtendrás el índice de exposición al riesgo por dimensión de la triada
+                <strong>Confidencialidad · Integridad · Disponibilidad</strong>.
             </p>
         </div>
     </section>
@@ -37,42 +37,48 @@ foreach ($preguntas as $p) {
         <div class="container">
             <form id="form-evaluacion">
 
-                <?php foreach ($orden_grupos as $g): ?>
+                <?php foreach ($dominios_orden as $dom): ?>
                     <div class="eval-group">
                         <h2 class="eval-group-title">
-                            <span class="eval-group-tag tag-<?php echo strtolower($g); ?>"><?php echo $g; ?></span>
-                            <?php echo $grupos[$g]; ?>
+                            <span class="eval-group-tag tag-dom"><?php echo strtoupper(substr($dom, 0, 3)); ?></span>
+                            <?php echo $dom; ?>
                         </h2>
 
-                        <div class="eval-questions">
-                            <?php foreach ($preguntas_por_grupo[$g] as $p): ?>
-                                <div class="eval-question" data-pregunta-id="<?php echo $p['id']; ?>">
-                                    <p class="eval-question-text">
-                                        <span class="eval-question-num"><?php echo $p['id']; ?>.</span>
-                                        <?php echo htmlspecialchars($p['texto']); ?>
-                                    </p>
-                                    <div class="eval-options" role="radiogroup" aria-label="Pregunta <?php echo $p['id']; ?>">
-                                        <label class="eval-option">
-                                            <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="Si" class="resp-radio" data-pid="<?php echo $p['id']; ?>" required>
-                                            <span>Sí</span>
-                                        </label>
-                                        <label class="eval-option">
-                                            <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="No" class="resp-radio" data-pid="<?php echo $p['id']; ?>" required>
-                                            <span>No</span>
-                                        </label>
-                                        <label class="eval-option">
-                                            <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="NA" class="resp-radio" data-pid="<?php echo $p['id']; ?>" required>
-                                            <span>No aplica</span>
-                                        </label>
+                        <div class="eval-controls">
+                            <?php foreach ($controles_por_dominio[$dom] as $c): ?>
+                                <div class="eval-control">
+                                    <div class="eval-control-head">
+                                        <span class="eval-control-code"><?php echo $c['codigo']; ?></span>
+                                        <h3 class="eval-control-name"><?php echo htmlspecialchars($c['nombre']); ?></h3>
                                     </div>
-                                    <div class="eval-madurez" data-madurez-for="<?php echo $p['id']; ?>" hidden>
-                                        <label class="eval-madurez-label" for="madurez-<?php echo $p['id']; ?>">Nivel de madurez observado</label>
-                                        <select id="madurez-<?php echo $p['id']; ?>" name="p<?php echo $p['id']; ?>_madurez" class="eval-madurez-select">
-                                            <option value="">Selecciona un nivel…</option>
-                                            <?php for ($n = 1; $n <= 5; $n++): ?>
-                                                <option value="<?php echo $n; ?>"><?php echo $n; ?> — <?php echo htmlspecialchars($niveles_madurez[$n]['label']); ?></option>
-                                            <?php endfor; ?>
-                                        </select>
+                                    <p class="eval-control-objetivo"><?php echo htmlspecialchars($c['objetivo']); ?></p>
+
+                                    <div class="eval-preguntas">
+                                        <?php foreach ($c['preguntas'] as $p): ?>
+                                            <div class="eval-question" data-pregunta-id="<?php echo $p['id']; ?>">
+                                                <p class="eval-question-text"><?php echo htmlspecialchars($p['texto']); ?></p>
+                                                <div class="eval-options" role="radiogroup" aria-label="Pregunta <?php echo $p['id']; ?>">
+                                                    <label class="eval-option">
+                                                        <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="Si" class="resp-radio" data-control="<?php echo $c['id']; ?>" required>
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label class="eval-option">
+                                                        <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="No" class="resp-radio" data-control="<?php echo $c['id']; ?>" required>
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label class="eval-option">
+                                                        <input type="radio" name="p<?php echo $p['id']; ?>_resp" value="NA" class="resp-radio" data-control="<?php echo $c['id']; ?>" required>
+                                                        <span>No aplica</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+
+                                    <div class="eval-control-madurez" data-madurez-display-for="<?php echo $c['id']; ?>">
+                                        <i class="fa-solid fa-gauge-high me-2"></i>
+                                        <span>Madurez calculada:</span>
+                                        <strong class="eval-control-madurez-value">Pendiente</strong>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -108,14 +114,12 @@ foreach ($preguntas as $p) {
                 </div>
             </div>
 
-            <div class="row g-4 mt-2" id="eval-dimension-cards">
-                <!-- Tarjetas C / I / D generadas por JS -->
-            </div>
+            <div class="row g-4 mt-2" id="eval-dimension-cards"></div>
 
             <div class="row g-4 mt-4">
                 <div class="col-md-7">
                     <div class="eval-chart-card">
-                        <h6>"Exposición al riesgo por dimensión (C · I · D)</h6>
+                        <h6>Exposición al riesgo por dimensión (C · I · D)</h6>
                         <canvas id="chart-barras" height="220"></canvas>
                     </div>
                 </div>
@@ -133,7 +137,7 @@ foreach ($preguntas as $p) {
             </div>
 
             <div class="eval-weak-card mt-4">
-                <h6><i class="fa-solid fa-triangle-exclamation me-2"></i>Controles más débiles detectados</h6>
+                <h6><i class="fa-solid fa-triangle-exclamation me-2"></i>Controles con menor nivel de madurez</h6>
                 <ul id="eval-weak-list" class="eval-weak-list"></ul>
             </div>
         </div>
@@ -143,10 +147,10 @@ foreach ($preguntas as $p) {
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script id="eval-data" type="application/json"><?php echo json_encode([
-    'preguntas' => $preguntas,
+    'controles' => $controles,
     'recomendaciones' => $recomendaciones,
     'grupos' => $grupos,
-    'niveles_madurez' => $niveles_madurez,
+    'rangos_madurez' => $rangos_madurez,
 ]); ?></script>
 <script src="assets/js/evaluacion.js"></script>
 

@@ -4,7 +4,7 @@
   const dataEl = document.getElementById("eval-data");
   if (!dataEl) return;
 
-  const { preguntas, recomendaciones, grupos, niveles_madurez } = JSON.parse(dataEl.textContent);
+  const { controles, recomendaciones, grupos, rangos_madurez } = JSON.parse(dataEl.textContent);
   const form = document.getElementById("form-evaluacion");
   const dashboard = document.getElementById("eval-dashboard");
 
@@ -14,22 +14,54 @@
   let chartBarras = null;
   let chartCircular = null;
 
+  function nivelMadurez(pct) {
+    const r = rangos_madurez.find((r) => pct >= r.min && pct <= r.max);
+    return r ? r.nivel : 0;
+  }
+
+  function labelMadurez(nivel) {
+    const r = rangos_madurez.find((r) => r.nivel === nivel);
+    return r ? r.label : "";
+  }
+
+  function cumplimientoControl(respuestasControl) {
+    const aplicables = respuestasControl.filter((r) => r !== "NA");
+    if (aplicables.length === 0) return null;
+    const sies = aplicables.filter((r) => r === "Si").length;
+    return (sies / aplicables.length) * 100;
+  }
+
+  function respuestasDeControl(control, formEl) {
+    return control.preguntas.map((p) => {
+      const checked = (formEl || form).querySelector(`input[name="p${p.id}_resp"]:checked`);
+      return checked ? checked.value : null;
+    });
+  }
+
+  function actualizarMadurezEnVivo(controlId) {
+    const control = controles.find((c) => c.id == controlId);
+    const valorEl = form.querySelector(`[data-madurez-display-for="${controlId}"] .eval-control-madurez-value`);
+    if (!control || !valorEl) return;
+
+    const resp = respuestasDeControl(control);
+    if (resp.some((r) => r === null)) {
+      valorEl.textContent = "Pendiente";
+      return;
+    }
+    const pct = cumplimientoControl(resp);
+    if (pct === null) {
+      valorEl.textContent = "No aplica";
+      return;
+    }
+    const nivel = nivelMadurez(pct);
+    valorEl.textContent = `Nivel ${nivel} — ${labelMadurez(nivel)} (${Math.round(pct)}% de "Sí")`;
+  }
+
   form.querySelectorAll(".resp-radio").forEach((radio) => {
     radio.addEventListener("change", function () {
-      const pid = this.dataset.pid;
-      const bloqueMadurez = form.querySelector(`[data-madurez-for="${pid}"]`);
-      const select = bloqueMadurez.querySelector("select");
-      if (this.value === "Si") {
-        bloqueMadurez.hidden = false;
-        select.required = true;
-      } else {
-        bloqueMadurez.hidden = true;
-        select.required = false;
-        select.value = "";
-      }
+      actualizarMadurezEnVivo(this.dataset.control);
     });
   });
-
 
   function semaforo(pct) {
     if (pct <= 20) return { color: "var(--risk-low)", nivel: "Verde", texto: "Nivel de exposición al riesgo bajo." };
@@ -37,33 +69,30 @@
     return { color: "var(--risk-crit)", nivel: "Rojo", texto: "Exposición alta: se requieren acciones correctivas." };
   }
 
-  function calcular(respuestas) {
-    const obtenido = { C: 0, I: 0, D: 0 };
-    const maximo = { C: 0, I: 0, D: 0 };
-    const detallePreguntas = [];
-
-    preguntas.forEach((p) => {
-      const r = respuestas[p.id];
-      const madurez = r.resp === "No" ? 0 : (r.resp === "NA" ? null : r.madurez);
-
-      DIMENSIONES.forEach((dim) => {
-        const peso = p.w[dim] || 0;
-        if (r.resp === "NA" || peso === 0) return;
-        obtenido[dim] += peso * (5 - madurez);
-        maximo[dim] += peso * 5;
-      });
-
-      const pesoTotal = p.w.C + p.w.I + p.w.D;
-      detallePreguntas.push({ id: p.id, texto: p.texto, grupo: p.grupo, resp: r.resp, madurez, pesoTotal });
+  function calcularControles(respuestas) {
+    return controles.map((c) => {
+      const resp = c.preguntas.map((p) => respuestas[p.id]);
+      const pct = cumplimientoControl(resp);
+      const madurez = pct === null ? null : nivelMadurez(pct);
+      return { ...c, pctCumplimiento: pct, madurez };
     });
+  }
 
+  function riesgoPorDimension(controlesCalc) {
     const pct = {};
     DIMENSIONES.forEach((dim) => {
-      pct[dim] = maximo[dim] > 0 ? Math.round((obtenido[dim] / maximo[dim]) * 100) : 0;
+      let num = 0, den = 0;
+      controlesCalc.forEach((c) => {
+        const peso = c.w[dim] || 0;
+        if (peso === 0 || c.madurez === null) return;
+        const factor = c.peso * peso;
+        num += (1 - c.madurez / 5) * factor;
+        den += factor;
+      });
+      pct[dim] = den > 0 ? Math.round((num / den) * 100) : 0;
     });
     const global = Math.round((pct.C + pct.I + pct.D) / 3);
-
-    return { pct, global, detallePreguntas };
+    return { pct, global };
   }
 
   function renderDimensionCards(pct) {
@@ -150,22 +179,21 @@
     });
   }
 
-  function renderControlesDebiles(detalle) {
+  function renderControlesDebiles(controlesCalc) {
     const lista = document.getElementById("eval-weak-list");
     lista.innerHTML = "";
-    const debiles = detalle
-      .filter((p) => p.resp !== "NA" && p.madurez < 3 && p.pesoTotal > 0)
-      .sort((a, b) => (a.madurez - b.madurez) || (b.pesoTotal - a.pesoTotal))
+    const debiles = controlesCalc
+      .filter((c) => c.madurez !== null && c.madurez < 3)
+      .sort((a, b) => (a.madurez - b.madurez) || (b.peso - a.peso))
       .slice(0, 8);
 
     if (debiles.length === 0) {
       lista.innerHTML = "<li>Todos los controles evaluados alcanzan un nivel de madurez adecuado (3 o más).</li>";
       return;
     }
-    debiles.forEach((p) => {
-      const nivel = niveles_madurez[p.madurez];
+    debiles.forEach((c) => {
       const li = document.createElement("li");
-      li.innerHTML = `<span class="eval-weak-estado estado-${p.madurez <= 1 ? 0 : 1}">Nivel ${p.madurez} — ${nivel.label}</span> ${p.texto}`;
+      li.innerHTML = `<span class="eval-weak-estado estado-${c.madurez <= 1 ? 0 : 1}">${c.codigo} · Nivel ${c.madurez} — ${labelMadurez(c.madurez)}</span> ${c.nombre}`;
       lista.appendChild(li);
     });
   }
@@ -174,31 +202,20 @@
     e.preventDefault();
 
     const respuestas = {};
-    let faltaMadurez = false;
-
-    preguntas.forEach((p) => {
-      const inputResp = form.querySelector(`input[name="p${p.id}_resp"]:checked`);
-      const resp = inputResp ? inputResp.value : null;
-      let madurez = null;
-
-      if (resp === "Si") {
-        const select = form.querySelector(`select[name="p${p.id}_madurez"]`);
-        madurez = select && select.value !== "" ? parseInt(select.value, 10) : null;
-        if (madurez === null) faltaMadurez = true;
-      }
-      respuestas[p.id] = { resp, madurez };
+    controles.forEach((c) => {
+      c.preguntas.forEach((p) => {
+        const checked = form.querySelector(`input[name="p${p.id}_resp"]:checked`);
+        respuestas[p.id] = checked ? checked.value : null;
+      });
     });
 
-    if (Object.values(respuestas).some((r) => r.resp === null)) {
+    if (Object.values(respuestas).some((v) => v === null)) {
       alert("Por favor responde todas las preguntas (Sí / No / No aplica) antes de calcular los resultados.");
       return;
     }
-    if (faltaMadurez) {
-      alert("Hay preguntas marcadas 'Sí' sin nivel de madurez seleccionado. Complétalas para continuar.");
-      return;
-    }
 
-    const { pct, global, detallePreguntas } = calcular(respuestas);
+    const controlesCalc = calcularControles(respuestas);
+    const { pct, global } = riesgoPorDimension(controlesCalc);
 
     try { renderGlobal(global); } catch (err) { console.error("Error en renderGlobal:", err); }
     try { renderDimensionCards(pct); } catch (err) { console.error("Error en renderDimensionCards:", err); }
@@ -212,7 +229,7 @@
         '<p class="eval-submit-hint" style="color:var(--risk-crit)">No se pudieron cargar los gráficos (Chart.js). El resto de los resultados sí está disponible abajo.</p>');
     }
     try { renderRecomendaciones(pct); } catch (err) { console.error("Error en renderRecomendaciones:", err); }
-    try { renderControlesDebiles(detallePreguntas); } catch (err) { console.error("Error en renderControlesDebiles:", err); }
+    try { renderControlesDebiles(controlesCalc); } catch (err) { console.error("Error en renderControlesDebiles:", err); }
 
     dashboard.hidden = false;
     dashboard.scrollIntoView({ behavior: "smooth", block: "start" });
